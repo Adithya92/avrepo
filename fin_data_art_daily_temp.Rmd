@@ -1,0 +1,138 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+#libraries
+library(tidyverse)
+library(readxl)
+library(here)
+library(nasapower)
+library(plotly)
+library(ggplot2)
+library(reticulate)
+```
+
+Import raw data for each time period
+```{r}
+#date for UK 1992 - 1994
+uk_1992_1994 <- get_power(
+  community = "AG",
+  lonlat = c(-0.2158, 51.5857),
+  pars = c("T2M"),
+  dates = c('1992-04-11', '1994-08-31'),
+  temporal_average = "DAILY"
+)
+
+#data for South Africa 1994 - 1999
+za_1994_1999 <- get_power(
+  community = "AG",
+  lonlat = c(28.02321, -26.26119),
+  pars = c("T2M"),
+  dates = c('1994-09-01', '1999-01-31'),
+  temporal_average = "DAILY"
+)
+#data for CA 1999 - 2010
+sauga_1999_2010 <- get_power(
+  community = "AG",
+  lonlat = c(-79.68939, 43.58241),
+  pars = c("T2M"),
+  dates = c('1999-02-01', '2010-08-30'),
+  temporal_average = "DAILY"
+)
+
+#data for Lon,CA 2010-2014
+western_2010_2014 <- get_power(
+  community = "AG",
+  lonlat = c(-81.2645, 42.9876),
+  pars = c("T2M"),
+  dates = c('2010-09-01', '2014-05-31'),
+  temporal_average = "DAILY"
+)
+
+#data for Miss, CA 2014-2015
+sauga_2014_2015 <- get_power(
+  community = "AG",
+  lonlat = c(-79.6894, 43.5824),
+  pars = c("T2M"),
+  dates = c('2014-06-01', '2015-04-30'),
+  temporal_average = "DAILY"  
+)
+
+#data for Austria 2015-2019
+at_2015_2019 <- get_power(
+  community = "AG",
+  lonlat = c(13.0487, 47.7937),
+  pars = c("T2M"),
+  dates = c('2015-05-01', '2019-06-30'),
+  temporal_average = "DAILY"  
+)
+
+#data for UK 2019-2020
+uk_2019_2020 <- get_power(
+  community = "AG",
+  lonlat = c(-0.2158, 51.5857),
+  pars = c("T2M"),
+  dates = c('2019-07-01', '2020-12-31'),
+  temporal_average = "DAILY"  
+  )
+
+```
+
+
+Now we need to agregate all the dataframes into one BMF
+```{r}
+agg_temp <- rbind(uk_1992_1994, za_1994_1999, sauga_1999_2010, western_2010_2014, sauga_2014_2015, at_2015_2019, uk_2019_2020)
+```
+
+
+Then we need to pivot the data
+```{r}
+#groups data by year and month, summarizes by day
+agg_temp <- agg_temp%>% 
+  group_by(YEAR, MM) %>% 
+  summarize(DD, T2M)
+
+#converts long table into wide table
+agg_temp <- pivot_wider(agg_temp, names_from = MM, values_from = T2M) 
+
+#reorder columns
+temp_fin <- agg_temp[,c('DD', 'YEAR', "1", "2","3","4","5","6","7","8","9","10","11","12")]
+
+```
+
+
+```{r}
+# exclude variables DD, YEAR
+myvars <- names(temp_fin) %in% c("DD", "YEAR")
+newdata <- temp_fin[!myvars]
+```
+
+Now we have our data in the right format, we can run it through plotly
+```{r, echo=FALSE, message=FALSE, result =FALSE, include = FALSE}
+# Library
+
+#filename = read_excel("uk_temp_data.xlsm")
+
+tdf<-matrix(newdata, dimnames = list(c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12")))
+na.omit(tdf)
+print(tdf)
+# Plot
+p <- plot_ly(z = tdf, type = "surface")
+p <- p %>% layout(
+  title = "Daily Avg. Temperatures of my Life", 
+  scene = list(
+    xaxis = list(title = "Day", showgrid = F, visible = T), 
+    yaxis = list(title = "Month", showgrid = F, visible = T),
+    zaxis = list(title = "Temp", showgrid = F, visible = F)
+      )
+)
+
+p
+```
+
